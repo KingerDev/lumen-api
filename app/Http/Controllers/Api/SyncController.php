@@ -127,12 +127,15 @@ class SyncController extends Controller
         $applied = ['entries' => 0, 'templates' => 0, 'skipped' => 0];
 
         DB::transaction(function () use ($validated, $user, &$applied) {
-            foreach ($validated['entries'] ?? [] as $payload) {
-                $applied[$this->applyEntry($user, $payload) ? 'entries' : 'skipped']++;
-            }
-
+            // Templates first: an entry written offline under a brand new
+            // template arrives in the same batch as that template, and
+            // entries.template_id is a foreign key. The other order fails.
             foreach ($validated['templates'] ?? [] as $payload) {
                 $applied[$this->applyTemplate($user, $payload) ? 'templates' : 'skipped']++;
+            }
+
+            foreach ($validated['entries'] ?? [] as $payload) {
+                $applied[$this->applyEntry($user, $payload) ? 'entries' : 'skipped']++;
             }
         });
 
