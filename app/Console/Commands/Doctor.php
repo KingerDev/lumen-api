@@ -68,8 +68,20 @@ class Doctor extends Command
     {
         $this->attempt('Pripojenie k databáze', function () {
             DB::connection()->getPdo();
+            $driver = DB::connection()->getDriverName();
 
-            return DB::connection()->getDriverName();
+            // The nastiest failure this project can have. Laravel 11+ defaults
+            // to sqlite, so a missing DB_CONNECTION looks perfectly healthy —
+            // right up until the next deploy replaces the container and takes
+            // years of journal entries with it.
+            if ($driver === 'sqlite' && app()->environment('production')) {
+                throw new \RuntimeException(
+                    'v produkcii beží SQLite vnútri kontajnera — pri redeployi sa '.
+                    'zmaže celý denník. Nastav DB_CONNECTION=pgsql a DB_HOST'
+                );
+            }
+
+            return $driver;
         });
     }
 
@@ -120,10 +132,10 @@ class Doctor extends Command
             // the whole point of this check is to name the variable the user
             // has to go and fill in.
             $envNames = [
-                'key' => 'R2_ACCESS_KEY_ID',
-                'secret' => 'R2_SECRET_ACCESS_KEY',
-                'bucket' => 'R2_BUCKET',
-                'endpoint' => 'R2_ENDPOINT',
+                'key' => 'R2_ACCESS_KEY_ID (alebo AWS_ACCESS_KEY_ID)',
+                'secret' => 'R2_SECRET_ACCESS_KEY (alebo AWS_SECRET_ACCESS_KEY)',
+                'bucket' => 'R2_BUCKET (alebo AWS_BUCKET)',
+                'endpoint' => 'R2_ENDPOINT (alebo AWS_ENDPOINT)',
             ];
 
             $missing = collect($envNames)

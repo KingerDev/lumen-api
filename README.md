@@ -98,15 +98,28 @@ Migrácie beží image sám (`AUTORUN_LARAVEL_MIGRATION=true`).
 
 ### R2 — na čom sa dá stroskotať
 
-Premenné sú `R2_*`, nie `AWS_*` — stock Laravel `.env` obsahuje
-`AWS_DEFAULT_REGION=us-east-1` a `AWS_USE_PATH_STYLE_ENDPOINT=false`, ktoré by
-ticho prebili hodnoty potrebné pre R2 a rozbili každú podpísanú URL.
+Kľúče berú oba prefixy — `R2_*` má prednosť, `AWS_*` funguje ako záloha:
 
 ```env
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
-R2_BUCKET=lumen-media
-R2_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+R2_ACCESS_KEY_ID=          # alebo AWS_ACCESS_KEY_ID
+R2_SECRET_ACCESS_KEY=      # alebo AWS_SECRET_ACCESS_KEY
+R2_BUCKET=lumen-media      # alebo AWS_BUCKET
+R2_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com   # alebo AWS_ENDPOINT
 ```
 
-Región `auto` a path-style adresovanie sú natvrdo v `config/filesystems.php`.
+**Región a path-style ale `AWS_*` zámerne neberú.** Stock Laravel `.env` obsahuje
+`AWS_DEFAULT_REGION=us-east-1` a `AWS_USE_PATH_STYLE_ENDPOINT=false` — presne tie
+dve hodnoty, ktoré R2 rozbijú, hoci konfigurácia vyzerá úplná. Sú natvrdo
+`auto` a `true` v `config/filesystems.php`, prepíšeš ich len cez `R2_REGION`
+a `R2_USE_PATH_STYLE_ENDPOINT`.
+
+### Databáza — pozor na SQLite
+
+Laravel 11+ padá pri chýbajúcom `DB_CONNECTION` defaultne na SQLite. V kontajneri
+to vyzerá, že všetko funguje, ale súbor zmizne pri každom redeployi aj s celým
+denníkom. `lumen:doctor` to preto v produkcii hlási ako chybu. Vždy nastav:
+
+```env
+DB_CONNECTION=pgsql
+DB_HOST=<nazov-postgres-sluzby-v-coolify>
+```
