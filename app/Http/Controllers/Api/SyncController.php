@@ -31,41 +31,94 @@ class SyncController extends Controller
     {
         $validated = $request->validate([
             'since' => ['sometimes', 'date'],
+            'cursor' => ['sometimes', 'string', 'max:512'],
             'limit' => ['sometimes', 'integer', 'min:1', 'max:1000'],
         ]);
 
         $since = isset($validated['since']) ? Carbon::parse($validated['since']) : null;
-        // Query strings arrive as strings; the strict comparison against the
-        // row count below would never match without this cast.
+        $cursor = $this->decodeCursor($validated['cursor'] ?? null);
         $limit = (int) ($validated['limit'] ?? 500);
 
         // Read the clock before querying: anything written during this request
         // must land in the *next* pull, never fall in the gap between them.
         $serverTime = now();
 
+        // One extra row is what tells us more is waiting, without a count query.
         $entries = $request->user()->entries()
             ->withTrashed()
             ->with(['media' => fn ($query) => $query->withTrashed()])
             ->when($since, fn ($query) => $query->where('updated_at', '>', $since))
+            /*
+             * Keyset pagination on (updated_at, id).
+             *
+             * Paging on the timestamp alone breaks the moment rows share one —
+             * and after a bulk import all 939 entries do. "> last timestamp"
+             * would then skip every remaining row of that same second.
+             */
+            ->when($cursor, fn ($query) => $query->where(
+                fn ($outer) => $outer
+                    ->where('updated_at', '>', $cursor['t'])
+                    ->orWhere(fn ($tie) => $tie
+                        ->where('updated_at', '=', $cursor['t'])
+                        ->where('id', '>', $cursor['id']))
+            ))
             ->orderBy('updated_at')
-            ->limit($limit)
+            ->orderBy('id')
+            ->limit($limit + 1)
             ->get();
 
+        $hasMore = $entries->count() > $limit;
+        $entries = $entries->take($limit);
+
+        // Templates are never paginated. There are a handful of them, and
+        // splitting two independent lists across one cursor is a way to lose
+        // rows for no gain.
         $templates = $request->user()->templates()
             ->withTrashed()
             ->when($since, fn ($query) => $query->where('updated_at', '>', $since))
             ->orderBy('updated_at')
-            ->limit($limit)
             ->get();
 
         return response()->json([
             'serverTime' => $serverTime->toIso8601String(),
             'entries' => EntryResource::collection($entries),
             'templates' => TemplateResource::collection($templates),
-            // True when the limit was hit — the client should pull again
-            // straight away rather than wait for the next interval.
-            'hasMore' => $entries->count() === $limit || $templates->count() === $limit,
+            'hasMore' => $hasMore,
+            // Opaque to the client — it encodes the (updated_at, id) keyset
+            // position, which the payload's own fields cannot reconstruct.
+            'nextCursor' => $hasMore ? $this->encodeCursor($entries->last()) : null,
         ]);
+    }
+
+    private function encodeCursor(Entry $entry): string
+    {
+        return base64_encode(json_encode([
+            // The model's own storage format, not a hand-picked one. A cursor
+            // written as '…:39.000000' against a column holding '…:39' compares
+            // as unequal on SQLite and silently drops that whole second's rows.
+            't' => $entry->updated_at->format($entry->getDateFormat()),
+            'id' => $entry->id,
+        ]));
+    }
+
+    /** @return array{t: string, id: string}|null */
+    private function decodeCursor(?string $raw): ?array
+    {
+        if (! $raw) {
+            return null;
+        }
+
+        $decoded = json_decode((string) base64_decode($raw, true), true);
+
+        // A malformed cursor must not silently become "start from the
+        // beginning" — that would loop the client forever.
+        abort_if(
+            ! is_array($decoded) || ! isset($decoded['t'], $decoded['id']),
+            422,
+            'Neplatný cursor.'
+        );
+
+        return ['t' => $decoded['t'], 'id' => $decoded['id']];
     }
 
     /**

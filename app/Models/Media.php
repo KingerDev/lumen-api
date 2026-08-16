@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 class Media extends Model
 {
@@ -58,6 +60,11 @@ class Media extends Model
      *
      * Null until the upload is confirmed, so the client can tell "still
      * uploading" apart from "broken".
+     *
+     * Signing failures are swallowed on purpose. This is called once per photo
+     * while serving a sync page, and letting one bad row throw would fail the
+     * whole pull — the client would lose the entire journal over a single
+     * unreachable file.
      */
     public function downloadUrl(): ?string
     {
@@ -65,9 +72,19 @@ class Media extends Model
             return null;
         }
 
-        return Storage::disk('r2')->temporaryUrl(
-            $this->r2_key,
-            now()->addSeconds((int) config('filesystems.disks.r2.download_ttl'))
-        );
+        try {
+            return Storage::disk('r2')->temporaryUrl(
+                $this->r2_key,
+                now()->addSeconds((int) config('filesystems.disks.r2.download_ttl'))
+            );
+        } catch (Throwable $e) {
+            Log::warning('[lumen] nepodarilo sa podpísať URL', [
+                'media' => $this->id,
+                'key' => $this->r2_key,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 }
