@@ -1,7 +1,7 @@
 # Lumen API
 
-Laravel 13 backend pre denníkovú appku. Drží zápisky, šablóny a metadáta médií;
-samotné fotky a videá žijú v Cloudflare R2.
+Laravel 13 backend pre denníkovú appku [Lumen](../../react-native-projects/lumen).
+Drží zápisky, šablóny a metadáta médií; samotné fotky a videá žijú v Cloudflare R2.
 
 ## Prečo takto
 
@@ -88,7 +88,7 @@ podľa šablóny, 906 s polohou, 893 s počasím.
 
 1. **Postgres** ako resource v tom istom projekte. `DB_HOST` je názov tej
    služby vo vnútornej sieti, nie `localhost`.
-2. **Application** z tohto repa, build pack **Dockerfile**, base directory `server`.
+2. **Application** z tohto repa, build pack **Dockerfile** (base directory je koreň).
 3. Premenné z `.env.example` do **Environment Variables** — vrátane `APP_KEY`
    (`php artisan key:generate --show`) a R2 kľúčov. Coolify ich drží zašifrované.
 4. Port **8080**, doménu a Let's Encrypt rieši Coolify.
