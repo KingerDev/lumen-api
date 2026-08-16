@@ -99,9 +99,11 @@ class MediaController extends Controller
             'Súbor sa v R2 nenašiel — upload zrejme neprebehol.'
         );
 
-        $media = $entry->media()->create([
+        // `make`, not `create`: user_id is intentionally not fillable, so mass
+        // assignment would drop it and the insert would fail on NOT NULL. The
+        // relationship only fills entry_id.
+        $media = $entry->media()->make([
             'id' => $validated['id'] ?? null,
-            'user_id' => $request->user()->id,
             'kind' => $validated['kind'],
             'r2_key' => $validated['key'],
             'mime' => $validated['mime'] ?? null,
@@ -112,6 +114,9 @@ class MediaController extends Controller
             'md5' => $validated['md5'] ?? null,
             'position' => $validated['position'] ?? $entry->media()->count(),
         ]);
+
+        $media->user_id = $request->user()->id;
+        $media->save();
 
         return (new MediaResource($media))->response()->setStatusCode(201);
     }

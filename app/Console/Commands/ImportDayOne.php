@@ -356,8 +356,8 @@ class ImportDayOne extends Command
                 fclose($stream);
             }
 
-            $entry->media()->create([
-                'user_id' => $user->id,
+            // See MediaController::store — user_id is not fillable on purpose.
+            $media = $entry->media()->make([
                 'kind' => $kind,
                 'r2_key' => $key,
                 'mime' => mime_content_type($file) ?: null,
@@ -366,6 +366,9 @@ class ImportDayOne extends Command
                 'md5' => $md5,
                 'position' => $position++,
             ]);
+
+            $media->user_id = $user->id;
+            $media->save();
 
             $imported++;
         }
