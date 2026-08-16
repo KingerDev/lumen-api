@@ -114,6 +114,10 @@ class ImportDayOne extends Command
 
             if ($dryRun) {
                 $stats['entries']++;
+                // Still check the files exist. Reporting "0 missing" without
+                // looking would be worse than not reporting at all — it reads
+                // as reassurance the run never actually earned.
+                $stats['missing'] += $this->countMissingMedia($row, $path);
                 $bar->advance();
 
                 continue;
@@ -367,6 +371,20 @@ class ImportDayOne extends Command
         }
 
         return [$imported, $missing];
+    }
+
+    /** How many of the row's media files are not on disk. Used by --dry-run. */
+    private function countMissingMedia(array $row, string $path): int
+    {
+        $missing = 0;
+
+        foreach (array_filter(explode(';', $row['mediaMD5s'] ?? '')) as $md5) {
+            if (! $this->findMediaFile($path, trim($md5))) {
+                $missing++;
+            }
+        }
+
+        return $missing;
     }
 
     /** Day One names files `<md5>.<ext>` under photos/ or videos/. */
