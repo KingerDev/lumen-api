@@ -31,7 +31,8 @@ class EntryRequest extends FormRequest
             'sections' => ['nullable', 'array'],
             'sections.*.fieldId' => ['required', 'string', 'max:255'],
             'sections.*.label' => ['required', 'string', 'max:500'],
-            'sections.*.value' => ['present', 'string'],
+            // nullable: an empty answer reaches us as null — see Entry::normalizeSections().
+            'sections.*.value' => ['present', 'nullable', 'string'],
 
             'location' => ['nullable', 'array'],
             'location.latitude' => ['required_with:location', 'numeric', 'between:-90,90'],
@@ -80,6 +81,10 @@ class EntryRequest extends FormRequest
             if ($this->has($input)) {
                 $attributes[$column] = $this->input($input);
             }
+        }
+
+        if (array_key_exists('sections', $attributes)) {
+            $attributes['sections'] = Entry::normalizeSections($attributes['sections']);
         }
 
         if ($this->has('location')) {

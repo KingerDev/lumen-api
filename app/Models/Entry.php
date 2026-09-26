@@ -87,6 +87,24 @@ class Entry extends Model
     }
 
     /**
+     * An unanswered section arrives with value null, not "": Laravel's
+     * ConvertEmptyStringsToNull middleware rewrites the empty string the app
+     * sends. Stored and served back as "" so the client's `value: string`
+     * contract holds.
+     */
+    public static function normalizeSections(?array $sections): ?array
+    {
+        if ($sections === null) {
+            return null;
+        }
+
+        return array_map(
+            fn (array $section) => [...$section, 'value' => $section['value'] ?? ''],
+            $sections,
+        );
+    }
+
+    /**
      * Splits an incoming ISO-8601 string into the instant to store and the
      * offset to remember.
      *

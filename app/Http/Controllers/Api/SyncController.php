@@ -145,7 +145,8 @@ class SyncController extends Controller
             'entries.*.sections' => ['nullable', 'array'],
             'entries.*.sections.*.fieldId' => ['required', 'string', 'max:255'],
             'entries.*.sections.*.label' => ['required', 'string', 'max:500'],
-            'entries.*.sections.*.value' => ['present', 'string'],
+            // nullable: an empty answer reaches us as null — see Entry::normalizeSections().
+            'entries.*.sections.*.value' => ['present', 'nullable', 'string'],
             'entries.*.location' => ['nullable', 'array'],
             'entries.*.location.latitude' => ['required_with:entries.*.location', 'numeric', 'between:-90,90'],
             'entries.*.location.longitude' => ['required_with:entries.*.location', 'numeric', 'between:-180,180'],
@@ -278,7 +279,7 @@ class SyncController extends Controller
             'text' => $payload['text'] ?? '',
             'template_id' => $payload['templateId'] ?? null,
             'template_name' => $payload['templateName'] ?? null,
-            'sections' => $payload['sections'] ?? null,
+            'sections' => Entry::normalizeSections($payload['sections'] ?? null),
             'latitude' => $location['latitude'] ?? null,
             'longitude' => $location['longitude'] ?? null,
             'place_name' => $location['placeName'] ?? null,
