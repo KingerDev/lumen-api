@@ -35,4 +35,17 @@ return [
         ],
     ],
 
+    /*
+     * Sign in with Apple. client_id is the app's bundle id — the `aud` of every
+     * identity token. The key (.p8 from Apple Developer → Keys) is only needed
+     * to revoke an account at Apple when it is deleted; sign-in works without.
+     */
+    'apple' => [
+        'client_id' => env('APPLE_CLIENT_ID', 'com.martinbalaz.lumen'),
+        'team_id' => env('APPLE_TEAM_ID'),
+        'key_id' => env('APPLE_KEY_ID'),
+        // The .p8 contents; newlines may be written as literal \n in Coolify.
+        'private_key' => env('APPLE_PRIVATE_KEY'),
+    ],
+
 ];
