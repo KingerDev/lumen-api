@@ -48,4 +48,12 @@ return [
         'private_key' => env('APPLE_PRIVATE_KEY'),
     ],
 
+    /*
+     * Public contact shown on /privacy and /support — App Review and GDPR both
+     * need a way to reach the person behind the app.
+     */
+    'lumen' => [
+        'contact_email' => env('LUMEN_CONTACT_EMAIL'),
+    ],
+
 ];
